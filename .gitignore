@@ -1,0 +1,22 @@
+# Переменные окружения с токенами
+.env
+
+# База данных бота
+*.db
+*.sqlite
+*.sqlite3
+
+# Кэш Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Виртуальное окружение
+venv/
+.venv/
+env/
+
+# Служебные файлы macOS и редакторов
+.DS_Store
+.idea/
+.vscode/
