@@ -37,6 +37,16 @@ TIMEOUT = 90
 # Сколько раз повторяем запрос, если Wildberries просит подождать
 MAX_RETRIES = 3
 
+# Сколько минут держим готовый отчет в памяти.
+# Данные за вчерашний день почти не меняются, а лимиты у Wildberries жесткие:
+# по заказам и выкупам разрешен только один запрос в минуту. Поэтому повторные
+# запросы за тот же день отдаем из памяти, не беспокоя API
+CACHE_MINUTES = 30
+
+# Хранилище готовых отчетов: ключ это пара (API-ключ, дата),
+# значение это время получения и сами данные
+_cache = {}
+
 
 class WBApiError(Exception):
     """
@@ -260,7 +270,14 @@ def get_funnel(api_key: str, report_date: date) -> dict:
         }
 
         answer = _request("POST", url, api_key, json=body)
-        products = (answer or {}).get("data", {}).get("products", [])
+
+        # На всякий случай проверяем, что пришел ожидаемый ответ,
+        # а не пустой список или что-то неожиданное
+        if not isinstance(answer, dict):
+            logger.warning("Воронка вернула неожиданный ответ")
+            break
+
+        products = answer.get("data", {}).get("products", [])
 
         for item in products:
             period = item.get("statistic", {}).get("selected", {})
@@ -331,12 +348,22 @@ def get_daily_stats(api_key: str, report_date: date = None) -> dict:
     Делает четыре запроса к разным группам API и собирает результат
     в один словарь. Формат словаря тот же, что был с тестовыми данными,
     поэтому остальной код бота менять не пришлось.
+
+    Готовый отчет запоминается на CACHE_MINUTES минут. Если за это время
+    запросить тот же день повторно, ответ придет мгновенно и без обращения
+    к Wildberries, чтобы не упираться в лимиты.
     """
     if report_date is None:
         report_date = get_yesterday()
 
     if not api_key:
         raise WBApiError("Не задан API-ключ Wildberries. Добавьте его командой /setkey.")
+
+    # Сначала смотрим, не запрашивали ли мы эти данные недавно
+    cached = _cache.get((api_key, report_date))
+    if cached and time.time() - cached[0] < CACHE_MINUTES * 60:
+        logger.info("Отдаем данные за %s из памяти", report_date)
+        return cached[1]
 
     logger.info("Запрашиваем данные Wildberries за %s", report_date)
 
@@ -345,7 +372,7 @@ def get_daily_stats(api_key: str, report_date: date = None) -> dict:
     ad_spend_rub = get_ad_spend(api_key, report_date)
     funnel = get_funnel(api_key, report_date)
 
-    return {
+    stats = {
         "date": report_date,
         "orders_rub": orders["orders_rub"],
         "orders_count": orders["orders_count"],
@@ -373,3 +400,8 @@ def get_daily_stats(api_key: str, report_date: date = None) -> dict:
             funnel["funnel_orders"], funnel["card_views"]
         ),
     }
+
+    # Запоминаем результат, чтобы повторный запрос не бил по лимитам
+    _cache[(api_key, report_date)] = (time.time(), stats)
+
+    return stats
