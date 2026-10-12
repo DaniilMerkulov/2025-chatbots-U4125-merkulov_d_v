@@ -123,9 +123,11 @@ def _request(method: str, url: str, api_key: str, **kwargs):
             )
 
         if response.status_code == 429:
-            # Wildberries сам говорит, сколько секунд подождать
-            pause = int(response.headers.get("X-Ratelimit-Retry", 20))
-            pause = min(pause, 60)
+            # Wildberries сам говорит в заголовке, сколько секунд ждать.
+            # Лимит по заказам и выкупам это один запрос в минуту,
+            # поэтому ждать иногда приходится до полутора минут
+            pause = int(response.headers.get("X-Ratelimit-Retry", 30))
+            pause = min(max(pause, 5), 90)
             logger.warning(
                 "Лимит запросов, попытка %s из %s, ждем %s сек", attempt, MAX_RETRIES, pause
             )

@@ -436,11 +436,21 @@ def build_settings_text(user: dict) -> str:
     )
 
 
+# Кто прямо сейчас ждет отчет. Нужно, чтобы одно и то же нажатие кнопки
+# несколько раз подряд не запускало несколько походов в Wildberries:
+# у него жесткие лимиты, и параллельные запросы сами себе мешают
+_busy_users = set()
+
+
 async def send_report_now(telegram_id: int, reply_function) -> None:
     """
     Общая функция отправки отчета по запросу.
     Используется и командой /report, и кнопкой в меню.
     """
+    if telegram_id in _busy_users:
+        await reply_function("⏳ Уже собираю отчет, подождите немного.")
+        return
+
     user = get_user(telegram_id)
 
     if not user or not user.get("api_key"):
@@ -454,6 +464,7 @@ async def send_report_now(telegram_id: int, reply_function) -> None:
     # несколько, и отчет по заказам готовится не сразу
     await reply_function("⏳ Собираю данные из кабинета, это займет до минуты...")
 
+    _busy_users.add(telegram_id)
     try:
         # Запросы к Wildberries обычные, не асинхронные, поэтому выполняем
         # их в отдельном потоке. Иначе бот на это время перестал бы
@@ -474,6 +485,10 @@ async def send_report_now(telegram_id: int, reply_function) -> None:
             "😔 Не удалось получить данные. "
             "Проверьте, что API-ключ указан верно, и попробуйте еще раз."
         )
+    finally:
+        # Снимаем пометку в любом случае, даже если запрос упал,
+        # иначе пользователь больше никогда не получит отчет
+        _busy_users.discard(telegram_id)
 
 
 # ---------------------------------------------------------------------------
