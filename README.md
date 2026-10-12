@@ -9,6 +9,7 @@
 | Работа | Тема | Отчет |
 |---|---|---|
 | Lab1 | Telegram-бот для продавца Wildberries | [lab1/lab1_report.md](lab1/lab1_report.md) |
+| Lab2 | Подключение бота к API Wildberries | [lab2/lab2_report.md](lab2/lab2_report.md) |
 
 ## О проекте
 
@@ -16,7 +17,7 @@
 
 Бот в Telegram: [@itmoftmi_mdv_bot](https://t.me/itmoftmi_mdv_bot)
 
-Код бота лежит в [lab1/bot](lab1/bot), инструкция по запуску в [lab1/bot/README.md](lab1/bot/README.md).
+Актуальный код бота лежит в [lab2/bot](lab2/bot), инструкция по запуску в [lab2/bot/README.md](lab2/bot/README.md). В папке [lab1/bot](lab1/bot) сохранена версия на тестовых данных, какой она была после первой лабораторной.
 
 ## Замечания по работе
 
